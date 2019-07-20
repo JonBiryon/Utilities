@@ -1,0 +1,158 @@
+<HTML>
+	<HEAD>
+		<TITLE>
+			Rephrase
+		</TITLE>
+	</HEAD>
+
+	<BODY STYLE="font:10 pt Ariel;Background:DarkSlateGray;Color:Khaki">
+		<HTA:Application MAXIMIZEBUTTON="no" selection="yes" SYSMENU="yes" BORDER = "thin" SCROLL="no"></HTA>
+		<CENTER>
+			<SPAN style="font:bold 13 pt David;color:#eeddaa">
+				• Rephrase •
+			<U ID="UElevation" onclick="Elevate()" style="Background:#332233;Color:#628B6D;align-text:right;font:12p" OnMouseOver=this.style.backgroundColor='Gainsboro';this.style.color='#332233' OnMouseOut=this.style.backgroundColor='#332233';this.style.color='#628B6D' Title="Run as administrator">
+				&nbsp;Elevate
+			</U>
+			</SPAN>
+		</CENTER>
+		
+		<CENTER>
+			Source: <INPUT id="sourceField" type="file" size=60 style="Background:#113322;Color:#ffff99;font:12" Title="Choose source file" OnMouseOver=this.style.backgroundColor='#557766' OnMouseout=this.style.backgroundColor='#113322'>
+			<P style="margin-top:0.4em;margin-bottom:0.4em"/>
+			Target: <INPUT id="pathField" Size=50 style="background:#113322;color:#ffff99;font:13" OnMouseOver=this.style.backgroundColor='#557766' OnMouseout=this.style.backgroundColor='#113322'>
+			<BUTTON name="btnPath" Style="font:8pt" Title="Choose save folder" onclick="BrowsePath()" OnMouseOver=this.style.backgroundColor='DarkGray' OnMouseout=this.style.backgroundColor=''>
+				Set path
+			</BUTTON>
+			<BUTTON Style="font:8pt" Title="Open folder" OnClick="OpenFolder()" OnMouseOver=this.style.backgroundColor='DarkGray' OnMouseout=this.style.backgroundColor=''>
+				»
+			</BUTTON>
+
+			File name: <INPUT id="tarFileName" Size=30 style="background:#113322;color:#ffff99;font:15" OnMouseOver=this.style.backgroundColor='#557766' OnMouseout=this.style.backgroundColor='#113322'>
+	
+			<BUTTON name="AddRowBtn" Style="font:14;float:left" onclick="AddRow()" OnMouseOver=this.style.backgroundColor='DarkGray' OnMouseout=this.style.backgroundColor=''>
+				Add row
+			</BUTTON>
+			
+			<B>
+
+			</B>
+			
+			<DIV align="center" id="myDIV" style="border:3px solid maroon;background-color:#997755;margin-bottom:2px;overflow:auto;width:440">
+				<I style="position:relative;right:60">Source</I>
+				<I style="position:relative;left:60">Target</I>
+			</DIV>
+			
+			<BUTTON name="AddRowBtn" Style="font:18" onclick="InitiateRephrase()" OnMouseOver=this.style.backgroundColor='DarkGray' OnMouseout=this.style.backgroundColor=''>
+				Execute
+			</BUTTON>
+		</CENTER>
+		<CENTER ID="statusText" style="font:18;Background:Moccasin;color:#906040">
+			__
+		</CENTER>
+		
+		
+		<script>
+			this.resizeTo(520,320); <!-- Obsolete, really, but here just in case -->
+			var curRow = 0;
+			var sourceAr = [];
+			var targetAr = [];
+			
+			function UpdateStatus(arg) {
+				statusText.innerHTML = arg.id + " = " + arg.value;
+				arg.style["background-color"] = arg.value == "" ? "#bbbbaa" : "#ccccdd";
+			}
+			
+			function AddRow() {
+				if (curRow<10) {
+					myDIV.style.height = 28+31*(curRow+1);
+					this.resizeTo(520,320+31*curRow+1);
+				}
+				sourceAr.push("src"+curRow);
+				targetAr.push("tar"+curRow);
+				myDIV.appendChild(document.createElement('<P style="margin-top:0.2em;margin-bottom:0.2em">'));
+				myDIV.appendChild(document.createTextNode(curRow));
+				myDIV.appendChild(document.createElement('<INPUT id='+sourceAr[curRow]+' style="background-color:#bbbbaa" align="right" onchange="UpdateStatus(this)">'));
+				myDIV.appendChild(document.createElement('<INPUT id='+targetAr[curRow]+' style="background-color:#bbbbaa" align="right" onchange="UpdateStatus(this)">'));
+				curRow++;
+			}
+			AddRow()
+		</script>
+
+		
+		<SCRIPT LANGUAGE="VBS">
+			Option Explicit
+			Dim objHTTP, objShell, objFSO, strStatus, OSVer, i, EleQuery, b
+			Set objShell = CreateObject("WScript.Shell")
+			Set objFSO = CreateObject("Scripting.FileSystemObject")
+			pathField.Value = objShell.CurrentDirectory
+
+			Sub Elevate()
+				CreateObject("Shell.Application").ShellExecute "mshta", document.location & " elevated", "", "runas", 1
+				Window.Close
+			End Sub
+			
+			Sub Ex_Delay() 'Small invisible pause, used to present changes while loading before window freezes.
+				objShell.Run "%COMSPEC% /c",0,1	
+			End Sub
+			
+			Sub BrowsePath()
+				Dim objFolder : Set objFolder = CreateObject("shell.application").BrowseForFolder(0, "Save Path:", 0)
+				If (not objFolder is nothing) Then
+					pathField.Value = objFolder.self.path
+				end If
+			End Sub
+			
+			Sub OpenFolder()
+				objShell.Run("explorer " & """" & pathField.Value & """" )
+			End Sub
+			
+			Sub BrowseSourceFile()
+				Dim sourceFile: sourceFile = Application.GetOpenFilename
+				If Not sourceFile = False Then
+					Sheet1.Cells(1, 2) = sourceFile
+				End If
+			End Sub
+			
+			Sub InitiateRephrase()
+				Dim fso: Set fso = CreateObject("Scripting.FileSystemObject")
+				If sourceField.value = "" Then
+					statusText.innerHTML = "Select a source file!"
+					Exit Sub
+				End If
+				If MsgBox("Generate file now?", vbOKCancel) = vbOK Then
+					Dim fRead, allText, fWrite
+					
+					'Read
+					Set fRead = fso.OpenTextFile(sourceField.value, 1)
+					allText = fRead.ReadAll
+					fRead.Close
+						
+					'Replace text
+					Dim i : For i = 0 to curRow-1
+						Dim val : val = document.getElementById("src"&i).value
+						If val <> "" Then
+							allText = Replace(allText, val, document.getElementById("tar"&i).value)
+						End If
+					Next
+
+					'Write
+					Dim fileName : fileName = tarFileName.value
+					If fileName = "" Then
+						fileName = "Rephrased_" & Mid(sourceField.value, InStrRev(sourceField.value,"\")+1)
+					End If
+					Set fWrite = fso.OpenTextFile(pathField.Value & "\" & fileName, 2, True)
+					fWrite.Write allText
+					fWrite.Close
+					
+					statusText.innerHTML = "Operation complete"
+				End If
+			End Sub
+
+			'''''''''''''''''''''''''''''''
+			'''''~Written by J.Shalem~'''''
+			''Last Update: July 19th 2019''
+			'''''''''''''''''''''''''''''''
+
+		</SCRIPT>
+	</BODY>
+</HTML>
