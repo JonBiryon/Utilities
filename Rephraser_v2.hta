@@ -1,0 +1,252 @@
+<HTML>
+	<HEAD>
+		<TITLE>
+			Rephraser
+		</TITLE>
+	</HEAD>
+
+	<BODY STYLE="font:10 pt Ariel;Background:DarkSlateGray;Color:Khaki" onload="onLoad()">
+		<HTA:Application selection="yes" SYSMENU="yes" BORDER="thick" SCROLL="no"/>
+		
+		<CENTER>
+			<u style="font:bold 13 pt David;color:#eeddaa">
+				Rephraser
+			</u>
+		</CENTER> <!-- Seperated CENTER prevents text merging -->
+		
+		<center style="border:3px solid maroon;background-color:#997755;margin-bottom:2px;overflow:auto;width:230">
+			<button id="toggleBtn_Folder" style=width:110 OnMouseOver=this.style.backgroundColor='DarkGray' OnMouseout=this.style.backgroundColor='' onclick="this.style.borderStyle='dashed';toggleBtn_File.style.borderStyle='';sourceFolderDiv.style.display='block';fileNameDiv.style.display='none';sourceFileDiv.style.display='none';
+">
+				Folder
+			</button>			
+			<button id="toggleBtn_File" style=width:110 OnMouseOver=this.style.backgroundColor='DarkGray' OnMouseout=this.style.backgroundColor='' onclick="this.style.borderStyle='dashed';toggleBtn_Folder.style.borderStyle='';sourceFolderDiv.style.display='none';fileNameDiv.style.display='block';sourceFileDiv.style.display='block';">
+				Single File
+			</button>
+		</center>
+
+		<center>
+			<!-- Source file -->
+			<div id="sourceFileDiv">
+				Source file:
+				<INPUT id="sourceFilePath" type="file" size=167 style="Background:#113322;Color:#ffff99;font:12" Title="Choose source file" OnMouseOver=this.style.backgroundColor='#557766' OnMouseout=this.style.backgroundColor='#113322'>
+			</div>
+			
+			<!-- Source folder -->
+			<div id="sourceFolderDiv">
+				Source folder:
+				<Input id="sourceDir" size=128 style="background:#113322;color:#ffff99;font:13;margin-right:2px" OnMouseOver=this.style.backgroundColor='#557766' OnMouseout=this.style.backgroundColor='#113322'>
+				<BUTTON Style="font:9pt" Title="Choose save folder" onclick="BrowseSourceFolder()" OnMouseOver=this.style.backgroundColor='DarkGray' OnMouseout=this.style.backgroundColor=''>
+					Browse...
+				</BUTTON>
+				<BUTTON Style="font:9pt" Title="Open folder" OnClick="OpenTargetFolder()" OnMouseOver=this.style.backgroundColor='DarkGray' OnMouseout=this.style.backgroundColor=''>
+					>>
+				</BUTTON>
+			</div>
+			
+			<!-- Minor spacing -->
+			<P style="margin-top:0.4em;margin-bottom:0.4em"/>
+			
+			<!-- Target folder -->
+			Target folder:
+			<INPUT id="targetDir" Size=129 style="background:#113322;color:#ffff99;font:13;margin-right:2px" OnMouseOver=this.style.backgroundColor='#557766' OnMouseout=this.style.backgroundColor='#113322'>
+			<BUTTON Style="font:9pt" Title="Choose save folder" onclick="BrowseTargetFolder()" OnMouseOver=this.style.backgroundColor='DarkGray' OnMouseout=this.style.backgroundColor=''>
+				Browse...
+			</BUTTON>
+			<BUTTON Style="font:9pt" Title="Open folder" OnClick="OpenFolder()" OnMouseOver=this.style.backgroundColor='DarkGray' OnMouseout=this.style.backgroundColor=''>
+				>>
+			</BUTTON>
+			
+			<BR>
+			
+			<!-- Target file name -->
+			<div id="fileNameDiv">
+				Target file name:
+				<INPUT id="tarFileName" Size=80 style="background:#113322;color:#ffff99;font:15" OnMouseOver=this.style.backgroundColor='#557766' OnMouseout=this.style.backgroundColor='#113322'>
+			</div>
+			<!-- Add row button -->
+			<BUTTON name="AddRowBtn" Style="font:14;float:left;margin-top:8px" onclick="AddRow()" OnMouseOver=this.style.backgroundColor='DarkGray' OnMouseout=this.style.backgroundColor=''>
+				Add row
+			</BUTTON>
+			
+			<!-- Source and target phrases -->
+			<DIV align="center" id="phrasesDiv" style="border:3px solid maroon;background-color:#997755;margin-bottom:2px;margin-top:8px;overflow:auto;width:880">
+				<I style="position:relative;right:60">Source</I>
+				<I style="position:relative;left:60">Target</I>
+			</DIV>
+			
+			<!-- Add row button -->
+			<center>
+				<button name="AddRowBtn" Style="font:18" onclick="InitiateRephrase()" OnMouseOver=this.style.backgroundColor='DarkGray' OnMouseout=this.style.backgroundColor=''>
+					Execute
+				</button>
+			</center>
+		</center>
+		
+		<!-- Status -->
+		<CENTER ID="statusText" style="font:18;Background:Moccasin;color:#906040">
+			&nbsp;
+		</CENTER>
+		
+		
+		<script>
+			var winwidth = 1100;
+			var winheight = 380;
+			var curRow = 0;
+			var sourceAr = [];
+			var targetAr = [];
+			
+			function UpdateStatus(arg) {
+				statusText.innerHTML = arg.id + " = " + arg.value;
+				arg.style["background-color"] = arg.value == "" ? "#bbbbaa" : "#ccccdd";
+			}
+			
+			function AddRow() {
+				if (curRow<10) {
+					phrasesDiv.style.height = 28+31*(curRow+1);
+					this.resizeTo(winwidth,winheight+31*curRow+1);
+				}
+				sourceAr.push("src"+curRow);
+				targetAr.push("tar"+curRow);
+				phrasesDiv.appendChild(document.createElement('<P style="margin-top:0.2em;margin-bottom:0.2em">'));
+				phrasesDiv.appendChild(document.createTextNode(curRow));
+				phrasesDiv.appendChild(document.createElement('<INPUT id='+sourceAr[curRow]+' style="background-color:#bbbbaa" size=50% align="right" onchange="UpdateStatus(this)">'));
+				phrasesDiv.appendChild(document.createElement('<INPUT id='+targetAr[curRow]+' style="background-color:#bbbbaa" size=50% align="right" onchange="UpdateStatus(this)">'));
+				curRow++;
+			}
+			
+			function onLoad() {
+				AddRow()
+				// radSelFolder.Checked = true
+				this.resizeTo(winwidth,winheight); // Obsolete, but here just in case
+				toggleBtn_Folder.click();
+			}
+		</script>
+
+		
+		<SCRIPT LANGUAGE="VBS">
+			Option Explicit
+			Dim objHTTP, objShell, fso, strStatus, OSVer, i, EleQuery, b
+			Dim srcFiles, srcFile, f, fRead, allText, fWrite, curFile
+			Set objShell = CreateObject("WScript.Shell")
+			Set fso = CreateObject("Scripting.FileSystemObject")
+			sourceDir.Value = objShell.CurrentDirectory
+			targetDir.Value = objShell.CurrentDirectory
+
+			''Reopens the program "As Administrator"
+			'Sub Elevate()
+			'	CreateObject("Shell.Application").ShellExecute "mshta", document.location & " elevated", "", "runas", 1
+			'	Window.Close
+			'End Sub
+			
+			''Brief pause - allows view update before window freezes while working.
+			'Sub Ex_Delay()
+			'	objShell.Run "%COMSPEC% /c",0,1	
+			'End Sub
+
+			Sub BrowseSourceFolder()
+				Dim objFolder : Set objFolder = CreateObject("shell.application").BrowseForFolder(0, "Save Path:", 0)
+				If (not objFolder is nothing) Then
+					sourceDir.Value = objFolder.self.path
+				end If
+			End Sub
+			
+			Sub OpenSourceFolder()
+				objShell.Run("explorer " & """" & sourceDir.Value & """" )
+			End Sub
+
+			Sub BrowseTargetFolder()
+				Dim objFolder : Set objFolder = CreateObject("shell.application").BrowseForFolder(0, "Save Path:", 0)
+				If (not objFolder is nothing) Then
+					targetDir.Value = objFolder.self.path
+				end If
+			End Sub
+			
+			Sub OpenTargetFolder()
+				objShell.Run("explorer " & """" & targetDir.Value & """" )
+			End Sub
+			
+			
+			sub DoRephrase()
+				'Read
+				Set fRead = fso.OpenTextFile(curFile, 1)
+				allText = fRead.ReadAll
+				fRead.Close
+					
+				'Replace text
+				Dim i : For i = 0 to curRow-1
+					Dim val : val = document.getElementById("src"&i).value
+					If val <> "" Then
+						allText = Replace(allText, val, document.getElementById("tar"&i).value)
+					End If
+				Next
+
+				'Write
+				Dim fileName : fileName = tarFileName.value
+				If fileName = "" Then
+					fileName = "Rephrased_" & Mid(curFile, InStrRev(curFile,"\")+1)
+				End If
+				Set fWrite = fso.OpenTextFile(targetDir.Value & "\" & fileName, 2, True)
+				fWrite.Write allText
+				fWrite.Close
+			end sub
+			
+			Sub InitiateRephrase()
+				Dim sourceElement
+				
+				if (sourceFolderDiv.style.display="block" and sourceFileDiv.style.display="none") then
+					sourceElement = "sourceDir"
+				elseif (sourceFolderDiv.style.display="none" and sourceFileDiv.style.display="block") then
+					msgbox "yes"
+					sourceElement = "sourceFilePath"
+				else
+					set sourceElement = "" 
+					statusText.innerHTML = "Error: Ambiguous source type."
+					exit sub
+				end if
+				
+				If sourceElement = "" Then
+					statusText.innerHTML = "Select a source!"
+					Exit Sub
+				End If
+				
+				if (sourceElement = "sourceDir") then
+					set srcFiles = fso.GetFolder(sourceDir.value).files
+					dim flist
+					for each f in srcFiles
+						flist = flist + f.name + vbCrLf
+					next
+					if MsgBox(flist, vbOKCancel, "Selected files") = vbCancel then
+						statusText.innerHTML = "Cancelled"
+						exit sub
+					end if
+					for each srcFile in srcFiles
+						curFile = srcFile
+						DoRephrase()
+					next
+				elseif (sourceElement = "sourceFilePath") then
+					curFile = sourceFilePath.value
+					if MsgBox(curFile, vbOKCancel, "Selected file") = vbCancel then
+						statusText.innerHTML = "Cancelled"
+						exit sub
+					end if
+					DoRephrase()
+				else
+					statusText.innerHTML = "Error: Unable to establish source."
+					exit sub
+				end if
+				
+				statusText.innerHTML = "Operation complete"
+			End Sub
+			
+			' Sub InitiateRephrase()
+				
+			' End Sub
+			
+		</SCRIPT>
+	</BODY>
+</HTML>
+
+<!-- ''''''''''''''''''''''''''''''' -->
+<!-- '''''~Written by J.Shalem~''''' -->
+<!-- ''Last Update: June 09th 2021'' -->
+<!-- ''''''''''''''''''''''''''''''' -->
